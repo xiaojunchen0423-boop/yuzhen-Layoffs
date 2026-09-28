@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>员工工资赔偿结算工具</title>
+<style>
+  :root{
+    --bg:#f4f6fb;
+    --card:#ffffff;
+    --ink:#1f2a44;
+    --sub:#6b7691;
+    --line:#e6eaf2;
+    --paid:#2e7d5b;
+    --paid-bg:#e8f6ef;
+    --holiday:#d9821f;
+    --holiday-bg:#fdf1e3;
+    --unpaid:#9aa3b5;
+    --unpaid-bg:#f2f4f8;
+    --accent:#3a5bd6;
+    --accent2:#6c4fe0;
+    --full:#1b7f9c;
+    --full-bg:#e3f3f8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#eef1f8 0%,#f6f4fb 100%);
+    color:var(--ink);
+    padding:28px 16px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px;margin:0 auto;}
+  header{text-align:center;margin-bottom:24px;}
+  header h1{font-size:24px;font-weight:800;letter-spacing:-.5px;}
+  header p{color:var(--sub);font-size:13px;margin-top:8px;line-height:1.7;}
+  .badge-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+  .badge{background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:6px 14px;font-size:12px;color:var(--sub);box-shadow:0 2px 8px rgba(30,40,80,.04);}
+  .badge b{color:var(--accent);}
+
+  .card{background:var(--card);border-radius:16px;padding:22px;margin-bottom:20px;
+    box-shadow:0 4px 24px rgba(30,40,80,.06);border:1px solid rgba(255,255,255,.8);}
+
+  /* 月份切换 Tab */
+  .tabs{display:flex;gap:8px;margin-bottom:16px;background:#f0f2f8;padding:6px;border-radius:12px;width:fit-content;}
+  .tab{padding:8px 18px;border-radius:9px;border:none;background:transparent;cursor:pointer;
+    font-family:inherit;font-size:13px;font-weight:600;color:var(--sub);transition:.15s;}
+  .tab.active{background:#fff;color:var(--accent);box-shadow:0 2px 8px rgba(30,40,80,.1);}
+  .tab-note{font-size:12px;color:var(--sub);margin-left:auto;align-self:center;padding-right:6px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:11px 10px;text-align:center;border-bottom:1px solid var(--line);}
+  th{background:#f7f8fc;color:var(--sub);font-size:11.5px;font-weight:700;
+    letter-spacing:.5px;text-transform:uppercase;position:sticky;top:0;}
+  td.name{font-weight:700;text-align:left;}
+  tbody tr:hover{background:#fafbfe;}
+  tfoot td{font-weight:800;background:#f7f8fc;border-bottom:none;font-size:14px;}
+  .num{font-variant-numeric:tabular-nums;font-family:"SF Mono",Consolas,monospace;}
+  .total-cell{color:var(--accent);}
+
+  /* 日历 */
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .cal-head h2{font-size:17px;font-weight:800;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;}
+  .wd{text-align:center;font-size:11px;font-weight:700;color:var(--sub);padding-bottom:4px;}
+  .wd:first-child,.wd:last-child{color:var(--holiday);}
+  .day{aspect-ratio:1/1;border-radius:11px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:13px;font-weight:600;
+    position:relative;transition:.12s;cursor:default;border:1.5px solid transparent;}
+  .day.empty{visibility:hidden;}
+  .day.out{color:#c4cad8;background:#f8f9fc;}
+  .day.in{background:var(--paid-bg);color:var(--paid);border-color:#cbe8db;}
+  .day.in:hover{transform:scale(1.06);box-shadow:0 3px 12px rgba(46,125,91,.18);}
+  .day.holiday{background:var(--holiday-bg);color:var(--holiday);border-color:#f3d9b8;}
+  .day.holiday:hover{transform:scale(1.06);box-shadow:0 3px 12px rgba(217,130,31,.2);}
+  .day.unpaid-day{background:var(--unpaid-bg);color:var(--unpaid);border-color:#e6eaf2;}
+  .day .flag{font-size:8px;margin-top:1px;opacity:.85;}
+  .day .dnum{line-height:1.1;}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+  .legend span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);}
+  .dot{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  .dot.in{background:var(--paid-bg);border:1.5px solid #cbe8db;}
+  .dot.hol{background:var(--holiday-bg);border:1.5px solid #f3d9b8;}
+  .dot.out{background:var(--unpaid-bg);border:1.5px solid #e6eaf2;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .stat{color:#fff;border-radius:14px;padding:16px;text-align:center;}
+  .stat .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .stat .l{font-size:11px;opacity:.9;margin-top:4px;}
+
+  footer{text-align:center;color:var(--sub);font-size:11.5px;line-height:1.8;margin-top:10px;}
+
+  /* 提示条 */
+  .tip{background:var(--full-bg);border-left:4px solid var(--full);border-radius:10px;
+    padding:12px 16px;font-size:13px;color:#155a6e;margin-bottom:16px;line-height:1.6;}
+  .tip b{color:var(--full);}
+
+  @media(max-width:640px){
+    .stat-row{grid-template-columns:1fr 1fr;}
+    .day{font-size:11px;border-radius:9px;}
+    .day .flag{font-size:7px;}
+    table{font-size:12px;}
+    th,td{padding:8px 5px;}
+    .tab-note{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📊 员工工资赔偿结算工具</h1>
+    <p>日工资 = 月薪 ÷ 21.75 ｜ 离职当月工资 = 日工资 × 在职计薪天数 + 赔偿金</p>
+    <div class="badge-row">
+      <div class="badge">折算基数 <b>21.75 天</b></div>
+      <div class="badge">李国栋 <b>9月完整月</b></div>
+      <div class="badge">伍/卢/梁 <b>10月计薪16天</b></div>
+    </div>
+  </header>
+
+  <!-- 月份切换 -->
+  <div class="tabs">
+    <button class="tab active" data-m="9" onclick="switchMonth(9)">9月 · 李国栋</button>
+    <button class="tab" data-m="10" onclick="switchMonth(10)">10月 · 伍/卢/梁</button>
+  </div>
+
+  <!-- 9月区块 -->
+  <div id="panel-9">
+    <div class="stat-row">
+      <div class="stat" style="background:linear-gradient(135deg,#1b7f9c,#2ea8c4);"><div class="v">1</div><div class="l">离职员工数</div></div>
+      <div class="stat" style="background:linear-gradient(135deg,#2e7d5b,#3aa47a);"><div class="v">22</div><div class="l">9月计薪天数</div></div>
+      <div class="stat" style="background:linear-gradient(135deg,#d9821f,#e6a54a);"><div class="v">1</div><div class="l">法定节假日（9/3）</div></div>
+      <div class="stat" style="background:linear-gradient(135deg,#4a5275,#6b7691);"><div class="v">32,665.13</div><div class="l">应发总额（元）</div></div>
+    </div>
+
+    <div class="card">
+      <div class="tip">
+        <b>李国栋</b> 于 <b>9月30日离职</b>，9月为完整自然月，工资 <b>7,262.65 元</b> 已按全月核算，无需按日折算；另计赔偿金 <b>25,402.48 元</b>。
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left;">员工</th>
+              <th>离职日期</th>
+              <th>计薪天数</th>
+              <th>9月工资</th>
+              <th>赔偿金</th>
+              <th>合计应发</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:var(--full-bg);">
+              <td class="name">李国栋</td>
+              <td>9月30日</td>
+              <td>22</td>
+              <td class="num">7,262.65</td>
+              <td class="num">25,402.48</td>
+              <td class="num total-cell">32,665.13</td>
+              <td style="font-size:12px;color:var(--full);">🔵 完整月</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cal-head"><h2>📅 2026年9月 计薪日历</h2></div>
+      <div class="cal-grid" id="cal9"></div>
+      <div class="legend">
+        <span><i class="dot in"></i>正常计薪（<b>21</b> 天）</span>
+        <span><i class="dot hol"></i>法定节假日（<b>1</b> 天 · 9/3）</span>
+        <span><i class="dot out"></i>不计薪（<b>8</b> 天）</span>
+        <span style="margin-left:auto;color:var(--sub);">完整月 1–30 日</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10月区块 -->
+  <div id="panel-10" style="display:none;">
+    <div class="stat-row">
+      <div class="stat" style="background:linear-gradient(135deg,#3a5bd6,#6c4fe0);"><div class="v">3</div><div class="l">在职员工数</div></div>
+      <div class="stat" style="background:linear-gradient(135deg,#2e7d5b,#3aa47a);"><div class="v">16</div><div class="l">10月计薪天数</div></div>
+      <div class="stat" style="background:linear-gradient(135deg,#d9821f,#e6a54a);"><div class="v">3</div><div class="l">法定节假日（1/2/5）</div></div>
+      <div class="stat" style="background:linear-gradient(135deg,#4a5275,#6b7691);"><div class="v">84,782.54</div><div class="l">应发总额（元）</div></div>
+    </div>
+
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left;">员工</th>
+              <th>月薪</th>
+              <th>日薪</th>
+              <th>计薪天数</th>
+              <th>10月工资</th>
+              <th>赔偿金</th>
+              <th>合计应发</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="name">伍先生</td>
+              <td class="num">7,000.00</td>
+              <td class="num">321.84</td>
+              <td>16</td>
+              <td class="num">5,149.43</td>
+              <td class="num">22,819.50</td>
+              <td class="num total-cell">27,968.93</td>
+            </tr>
+            <tr>
+              <td class="name">卢先生</td>
+              <td class="num">6,300.00</td>
+              <td class="num">289.66</td>
+              <td>16</td>
+              <td class="num">4,634.48</td>
+              <td class="num">25,374.83</td>
+              <td class="num total-cell">30,009.31</td>
+            </tr>
+            <tr>
+              <td class="name">梁先生</td>
+              <td class="num">5,800.00</td>
+              <td class="num">266.67</td>
+              <td>16</td>
+              <td class="num">4,266.67</td>
+              <td class="num">22,537.63</td>
+              <td class="num total-cell">26,804.30</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="name">合计</td>
+              <td></td><td></td><td></td>
+              <td class="num total-cell">14,050.58</td>
+              <td class="num total-cell">70,731.96</td>
+              <td class="num total-cell">84,782.54</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cal-head"><h2>📅 2026年10月 计薪日历</h2></div>
+      <div class="cal-grid" id="cal10"></div>
+      <div class="legend">
+        <span><i class="dot in"></i>正常计薪（<b>13</b> 天）</span>
+        <span><i class="dot hol"></i>法定节假日（<b>3</b> 天 · 1/2/5）</span>
+        <span><i class="dot out"></i>不计薪（<b>7</b> 天）</span>
+        <span style="margin-left:auto;color:var(--sub);">在职区间 1–23 日</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 汇总 -->
+  <div class="card">
+    <div class="cal-head"><h2>🧾 四人汇总</h2></div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left;">员工</th>
+            <th>离职/最后工作日</th>
+            <th>当月工资</th>
+            <th>赔偿金</th>
+            <th>合计应发</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background:var(--full-bg);">
+            <td class="name">李国栋</td>
+            <td>9月30日</td>
+            <td class="num">7,262.65</td>
+            <td class="num">25,402.48</td>
+            <td class="num total-cell">32,665.13</td>
+            <td style="font-size:12px;color:var(--full);">9月完整月</td>
+          </tr>
+          <tr>
+            <td class="name">伍先生</td>
+            <td>10月23日</td>
+            <td class="num">5,149.43</td>
+            <td class="num">22,819.50</td>
+            <td class="num total-cell">27,968.93</td>
+            <td style="font-size:12px;color:var(--paid);">计薪16天</td>
+          </tr>
+          <tr>
+            <td class="name">卢先生</td>
+            <td>10月23日</td>
+            <td class="num">4,634.48</td>
+            <td class="num">25,374.83</td>
+            <td class="num total-cell">30,009.31</td>
+            <td style="font-size:12px;color:var(--paid);">计薪16天</td>
+          </tr>
+          <tr>
+            <td class="name">梁先生</td>
+            <td>10月23日</td>
+            <td class="num">4,266.67</td>
+            <td class="num">22,537.63</td>
+            <td class="num total-cell">26,804.30</td>
+            <td style="font-size:12px;color:var(--paid);">计薪16天</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="name">总计</td>
+            <td>4人</td>
+            <td class="num total-cell">21,313.23</td>
+            <td class="num total-cell">96,134.44</td>
+            <td class="num total-cell">117,447.67</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    说明：9月为完整自然月，李国栋工资已核算不再折算；10月按日薪 = 月薪 ÷ 21.75 × 计薪天数计算。<br>
+    以上均未扣除社保公积金个人部分及个人所得税，实际到手请以财务核算为准。
+  </footer>
+</div>
+
+<script>
+// 2026 法定节假日（月:日数组）
+const HOLIDAYS = {9:[3], 10:[1,2,5]};
+const MONTH_DAYS = {9:30, 10:31};
+// 每月1日的星期：2026-09-01 周二(2), 2026-10-01 周四(4)
+const FIRST_WEEK = {9:2, 10:4};
+const WNAMES = ['日','一','二','三','四','五','六'];
+
+function buildCal(month, range){
+  const grid = document.getElementById('cal'+month);
+  grid.innerHTML='';
+  WNAMES.forEach(w=>{const e=document.createElement('div');e.className='wd';e.textContent=w;grid.appendChild(e);});
+  const total = MONTH_DAYS[month];
+  const hol = HOLIDAYS[month]||[];
+  const fw = FIRST_WEEK[month];
+  for(let i=0;i<fw;i++){const e=document.createElement('div');e.className='day empty';grid.appendChild(e);}
+  for(let d=1;d<=total;d++){
+    const el=document.createElement('div');
+    const wd=(fw+d-1)%7;
+    const inRange = d<=range;
+    const isHol = hol.includes(d);
+    const isRest = (wd===0||wd===6);
+    let cls='out',flag='';
+    if(!inRange){cls='out';}
+    else if(isHol){cls='holiday';flag='法定假';}
+    else if(isRest){cls='unpaid-day';flag='休息';}
+    else{cls='in';flag='计薪';}
+    el.className='day '+cls;
+    el.innerHTML=`<span class="dnum">${d}</span>${inRange?`<span class="flag">${flag}</span>`:''}`;
+    if(!inRange) el.style.opacity='.4';
+    grid.appendChild(el);
+  }
+}
+
+function switchMonth(m){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', +t.dataset.m===m));
+  document.getElementById('panel-9').style.display = m===9?'':'none';
+  document.getElementById('panel-10').style.display = m===10?'':'none';
+}
+
+buildCal(9, 30);
+buildCal(10, 23);
+switchMonth(9);
+</script>
+</body>
+</html>
